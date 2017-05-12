@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Command">
+    <Text>Command SocketModifier</Text>
+    <Description>Some description for SocketModifier</Description>
+    <Assembly>SocketModifier.dll</Assembly>
+    <FullClassName>SocketModifier.Command</FullClassName>
+    <ClientId>14b8ebaf-ffd7-4032-9e62-7758ae14da99</ClientId>
+    <VendorId>com.typepad.thebuildingcoder</VendorId>
+    <VendorDescription>The Building Coder, http://thebuildingcoder.typepad.com</VendorDescription>
+  </AddIn>
+  <AddIn Type="Application">
+    <Name>Application SocketModifier</Name>
+    <Assembly>SocketModifier.dll</Assembly>
+    <FullClassName>SocketModifier.App</FullClassName>
+    <ClientId>e1e6687f-9d25-412b-b55c-c408725c5c11</ClientId>
+    <VendorId>com.typepad.thebuildingcoder</VendorId>
+    <VendorDescription>The Building Coder, http://thebuildingcoder.typepad.com</VendorDescription>
+  </AddIn>
+</RevitAddIns>
