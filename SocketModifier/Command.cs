@@ -2,21 +2,18 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using Autodesk.Revit.ApplicationServices;
+using System.Windows;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
+using Application = Autodesk.Revit.ApplicationServices.Application;
+
 #endregion
 
 namespace SocketModifier
 {
-    public class TargetWalls
-    {
-        public Element element { get; set; }
-        public string material { get; set; }
-        public BoundingBoxXYZ box { get; set; }
-    }
+   
 
     [Transaction(TransactionMode.Manual)]
     public class Command : IExternalCommand
@@ -30,9 +27,63 @@ namespace SocketModifier
             UIDocument uidoc = uiapp.ActiveUIDocument;
             Application app = uiapp.Application;
             Document doc = uidoc.Document;
-           
-            ChangeParameters(app, doc);
+            DocSelection dc = new DocSelection();
+            dc.GetDocList(GetDocuments(app));
 
+            Window docSelectionWindow = new Window();
+            docSelectionWindow.ResizeMode = ResizeMode.NoResize;
+            docSelectionWindow.Width = 500;
+            docSelectionWindow.Height = 350;
+            docSelectionWindow.Topmost = true;
+            docSelectionWindow.Content = dc;
+            docSelectionWindow.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            docSelectionWindow.ShowDialog();
+
+            List<Document> UserDefinedDocuments = new List<Document>();
+            if (docSelectionWindow.DialogResult == true)
+            {
+                if (dc.Docs.Count > 0)
+                {
+                    UserDefinedDocuments = dc.Docs;
+                }
+                else
+                {
+                    MessageBox.Show("No projects selected");
+                    return Result.Cancelled;
+                }
+            }
+
+            LevelSelection ls = new LevelSelection();
+            foreach (Document docItem in UserDefinedDocuments)
+            {
+                ls.GetLevels(GetLevels(docItem));
+            }
+
+            //Window levelSelectionWindow = new Window();
+            //levelSelectionWindow.ResizeMode = ResizeMode.NoResize;
+            //levelSelectionWindow.Width = 320;
+            //levelSelectionWindow.Height = 350;
+            //levelSelectionWindow.Topmost = true;
+            //levelSelectionWindow.Content = ls;
+            //levelSelectionWindow.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            //levelSelectionWindow.ShowDialog();
+
+            //List<Level> UserDefinedLevels = new List<Level>();
+            //if (levelSelectionWindow.DialogResult == true)
+            //{
+            //    if (ls.Levels.Count > 0)
+            //    {
+            //        UserDefinedLevels = ls.Levels;
+            //    }
+            //    else
+            //    {
+            //        MessageBox.Show("No levels selected");
+            //        return Result.Cancelled;
+            //    }
+            //}
+
+            ChangeParameters(app, doc);
+            TaskDialog.Show("Task completed", "Task completed");
             return Result.Succeeded;
         }
 
@@ -41,7 +92,7 @@ namespace SocketModifier
             string temp = string.Empty;
             foreach (TargetWalls wall in list)
             {
-                temp += wall.element.Name + " - " + wall.material +  "\n";
+                temp += wall.element.Name + " - " + wall.material + "\n";
             }
             TaskDialog.Show("Walls", temp);
         }
@@ -51,111 +102,41 @@ namespace SocketModifier
             BoundingBoxXYZ box = wall.get_BoundingBox(null);
             if (box != null)
             {
-               // TaskDialog.Show("BoundingBox", box.Min.ToString());
+                // TaskDialog.Show("BoundingBox", box.Min.ToString());
                 Outline outline = new Outline(box.Min, box.Max);
                 BoundingBoxIntersectsFilter filter = new BoundingBoxIntersectsFilter(outline);
                 return filter;
             }
             return null;
         }
-
-        public List<FamilyInstance> GetFireAlarmDevices(Document doc, Element wall)
+        
+        private List<FamilyInstance> GetDevice(Document doc, Element wall, BuiltInCategory category)
         {
             BoundingBoxIntersectsFilter filter = Filter(wall, doc);
-            List<FamilyInstance> list = new List<FamilyInstance>();
+            List<FamilyInstance> devicesList = new List<FamilyInstance>();
             if (filter != null)
             {
                 FilteredElementCollector collector = new FilteredElementCollector(doc)
                     .OfClass(typeof(FamilyInstance))
-                    .OfCategory(BuiltInCategory.OST_FireAlarmDevices)
-                    .WherePasses(filter);
-
+                    .OfCategory(category)
+                    .WherePasses(filter)
+                   ;
                 string temp = string.Empty;
                 foreach (FamilyInstance instance in collector)
                 {
-                    list.Add(instance);
-                    temp += instance.Id + " " + instance.Name + "\n";
+                   
+                   // if (instance.LevelId == selectedLevel.Id)
+                    {
+                        devicesList.Add(instance);
+                        temp += instance.Id + " " + instance.Name + "\n";
+                    }
                 }
 
-               // if (!string.IsNullOrEmpty(temp))
-                  //  TaskDialog.Show("Fire Alarm Devices", temp);
+                // if (!string.IsNullOrEmpty(temp))
+               // TaskDialog.Show("Selected Devices", temp);
             }
-           
 
-            return list;
-        }
-
-        public List<FamilyInstance> GetDataDevices(Document doc, Element wall)
-        {
-            BoundingBoxIntersectsFilter filter = Filter(wall, doc);
-            List<FamilyInstance> list = new List<FamilyInstance>();
-
-            if (filter != null)
-            {
-                FilteredElementCollector collector = new FilteredElementCollector(doc)
-                    .OfClass(typeof(FamilyInstance))
-                    .OfCategory(BuiltInCategory.OST_DataDevices)
-                    .WherePasses(filter);
-
-                string temp = string.Empty;
-                foreach (FamilyInstance instance in collector)
-                {
-                    list.Add(instance);
-                    temp += instance.Id + " " + instance.Name + "\n";
-                }
-
-               // if (!string.IsNullOrEmpty(temp))
-                   // TaskDialog.Show("Data Devices", temp);
-            }
-            return list;
-        }
-
-        public List<FamilyInstance> GetLightingDevices(Document doc, Element wall)
-        {
-            BoundingBoxIntersectsFilter filter = Filter(wall, doc);
-            List<FamilyInstance> list = new List<FamilyInstance>();
-            if (filter != null)
-            {
-                FilteredElementCollector collector = new FilteredElementCollector(doc)
-                    .OfClass(typeof(FamilyInstance))
-                    .OfCategory(BuiltInCategory.OST_LightingDevices)
-                    .WherePasses(filter);
-
-                string temp = string.Empty;
-                foreach (FamilyInstance instance in collector)
-                {
-                    list.Add(instance);
-                    temp += instance.Id + " " + instance.Name + "\n";
-                }
-
-               // if (!string.IsNullOrEmpty(temp))
-                   // TaskDialog.Show("Lighting Devices", temp);
-            }
-            return list;
-        }
-
-        public List<FamilyInstance> GetElectricalFixtures(Document doc, Element wall)
-        {
-            BoundingBoxIntersectsFilter filter = Filter(wall, doc);
-            List<FamilyInstance> list = new List<FamilyInstance>();
-            if (filter != null)
-            {
-                FilteredElementCollector collector = new FilteredElementCollector(doc)
-                    .OfClass(typeof(FamilyInstance))
-                    .OfCategory(BuiltInCategory.OST_ElectricalFixtures)
-                    .WherePasses(filter);
-
-                string temp = string.Empty;
-                foreach (FamilyInstance instance in collector)
-                {
-                    list.Add(instance);
-                    temp += instance.Id + " " + instance.Name + "\n";
-                }
-
-               // if (!string.IsNullOrEmpty(temp))
-                   // TaskDialog.Show("Electrical Fixtures", temp);
-            }
-            return list;
+            return devicesList;
         }
 
         public List<FamilyInstance> GetTelephoneDevices(Document doc, Element wall)
@@ -176,8 +157,8 @@ namespace SocketModifier
                     temp += instance.Id + " " + instance.Name + "\n";
                 }
 
-               // if (!string.IsNullOrEmpty(temp))
-                    //TaskDialog.Show("Telephone Devices", temp);
+                // if (!string.IsNullOrEmpty(temp))
+                //TaskDialog.Show("Telephone Devices", temp);
             }
             return list;
         }
@@ -185,12 +166,16 @@ namespace SocketModifier
         public List<FamilyInstance> GetDevices(Document doc, Element wall)
         {
             List<FamilyInstance> deviceList = new List<FamilyInstance>();
-            deviceList.AddRange(GetElectricalFixtures(doc, wall));
-            deviceList.AddRange(GetLightingDevices(doc, wall));
-            deviceList.AddRange(GetDataDevices(doc, wall));
-            deviceList.AddRange(GetTelephoneDevices(doc, wall));
-            deviceList.AddRange(GetFireAlarmDevices(doc, wall));
-
+           
+                //deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_CommunicationDevices));
+                deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_DataDeviceTags));
+                //deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_ElectricalEquipment));
+                deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_ElectricalFixtures));
+                deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_FireAlarmDevices));
+                deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_LightingDevices));
+                //deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_LightingFixtures));
+                deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_TelephoneDevices));
+           
             return deviceList;
         }
 
@@ -222,7 +207,7 @@ namespace SocketModifier
             return list;
         }
 
-        public List<TargetWalls> GetAllWalls(List<Document> documents)
+        public List<TargetWalls> GetAllWalls(List<Document> documents, List<Level> levels)
         {
             List<TargetWalls> list = new List<TargetWalls>();
             foreach (Document doc in documents)
@@ -230,30 +215,61 @@ namespace SocketModifier
                 FilteredElementCollector collector = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Walls);
                 foreach (Element element in collector)
                 {
-                    TargetWalls tWall = new TargetWalls();
-                    tWall.element = element;
-                    foreach (Parameter param in element.Parameters)
+                   // foreach (Level level in levels)
                     {
-                        if (param.Definition.Name.Contains("IfcMaterial"))
+                       // if (element.LevelId == level.Id)
                         {
-                            tWall.material = param.AsString();
+                            TargetWalls tWall = new TargetWalls();
+                            tWall.element = element;
+                            foreach (Parameter param in element.Parameters)
+                            {
+                                if (param.Definition.Name.Contains("Description"))
+                                {
+                                   // MessageBox.Show(param.AsString());
+                                    tWall.material = param.AsString();
+                                }
+                            }
+                            list.Add(tWall);
                         }
-                      
                     }
-                    list.Add(tWall);
                 }
             }
             return list;
         }
 
-        public void ChangeParameters(Application app, Document doc)
+        private void ChangeParameters(Application app, Document doc)
         {
-            List<TargetWalls> walls = GetAllWalls(GetLinkedDocuments(app));
+            string temp = string.Empty;
+            List<TargetWalls> walls = GetAllWalls(GetLinkedDocuments(app), GetLevels(doc));
             foreach (TargetWalls wall in walls)
             {
+                temp += wall.material+ "\n";
                 List<FamilyInstance> wallDevices = GetDevices(doc, wall.element);
                 AddParameterData(doc, wallDevices, wall);
             }
+            MessageBox.Show(temp);
+        }
+
+        public List<Document> GetDocuments(Application app)
+        {
+            List<Document> docs = new List<Document>();
+            foreach (Document d in app.Documents)
+            {
+                docs.Add(d);
+            }
+            return docs;
+        }
+
+        public List<Level> GetLevels(Document doc)
+        {
+            List<Level> levels = new List<Level>();
+            FilteredElementCollector levelCollector = new FilteredElementCollector(doc).OfClass(typeof(Level));
+
+            foreach (Element level in levelCollector)
+            {
+                levels.Add(level as Level);
+            }
+            return levels;
         }
     }
 }
