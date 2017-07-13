@@ -13,8 +13,6 @@ using Application = Autodesk.Revit.ApplicationServices.Application;
 
 namespace SocketModifier
 {
-   
-
     [Transaction(TransactionMode.Manual)]
     public class Command : IExternalCommand
     {
@@ -29,7 +27,7 @@ namespace SocketModifier
             Document doc = uidoc.Document;
             DocSelection dc = new DocSelection();
             dc.GetDocList(GetDocuments(app));
-
+           
             Window docSelectionWindow = new Window();
             docSelectionWindow.ResizeMode = ResizeMode.NoResize;
             docSelectionWindow.Width = 500;
@@ -109,7 +107,7 @@ namespace SocketModifier
             }
             return null;
         }
-        
+
         private List<FamilyInstance> GetDevice(Document doc, Element wall, BuiltInCategory category)
         {
             BoundingBoxIntersectsFilter filter = Filter(wall, doc);
@@ -119,13 +117,12 @@ namespace SocketModifier
                 FilteredElementCollector collector = new FilteredElementCollector(doc)
                     .OfClass(typeof(FamilyInstance))
                     .OfCategory(category)
-                    .WherePasses(filter)
-                   ;
+                    .WherePasses(filter);
+
                 string temp = string.Empty;
                 foreach (FamilyInstance instance in collector)
                 {
-                   
-                   // if (instance.LevelId == selectedLevel.Id)
+                    // if (instance.LevelId == selectedLevel.Id)
                     {
                         devicesList.Add(instance);
                         temp += instance.Id + " " + instance.Name + "\n";
@@ -133,7 +130,7 @@ namespace SocketModifier
                 }
 
                 // if (!string.IsNullOrEmpty(temp))
-               // TaskDialog.Show("Selected Devices", temp);
+                // TaskDialog.Show("Selected Devices", temp);
             }
 
             return devicesList;
@@ -166,16 +163,16 @@ namespace SocketModifier
         public List<FamilyInstance> GetDevices(Document doc, Element wall)
         {
             List<FamilyInstance> deviceList = new List<FamilyInstance>();
-           
-                //deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_CommunicationDevices));
-                deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_DataDeviceTags));
-                //deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_ElectricalEquipment));
-                deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_ElectricalFixtures));
-                deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_FireAlarmDevices));
-                deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_LightingDevices));
-                //deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_LightingFixtures));
-                deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_TelephoneDevices));
-           
+
+            deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_CommunicationDevices));
+            deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_DataDeviceTags));
+            deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_ElectricalEquipment));
+            deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_ElectricalFixtures));
+            deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_FireAlarmDevices));
+            deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_LightingDevices));
+            deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_LightingFixtures));
+            deviceList.AddRange(GetDevice(doc, wall, BuiltInCategory.OST_TelephoneDevices));
+
             return deviceList;
         }
 
@@ -189,6 +186,8 @@ namespace SocketModifier
                 {
                     Parameter material = instance.LookupParameter("WandTyp");
                     material.Set(wall.material);
+                    Parameter fireRate = instance.LookupParameter("Brandschutz");
+                    fireRate.Set(wall.fireRate);
                 }
                 trans.Commit();
             }
@@ -215,23 +214,22 @@ namespace SocketModifier
                 FilteredElementCollector collector = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Walls);
                 foreach (Element element in collector)
                 {
-                   // foreach (Level level in levels)
+                    TargetWalls tWall = new TargetWalls();
+                    tWall.element = element;
+                    foreach (Parameter param in element.Parameters)
                     {
-                       // if (element.LevelId == level.Id)
+                        if (param.Definition.Name.Contains("Description"))
                         {
-                            TargetWalls tWall = new TargetWalls();
-                            tWall.element = element;
-                            foreach (Parameter param in element.Parameters)
-                            {
-                                if (param.Definition.Name.Contains("Description"))
-                                {
-                                   // MessageBox.Show(param.AsString());
-                                    tWall.material = param.AsString();
-                                }
-                            }
-                            list.Add(tWall);
+                            // MessageBox.Show(param.AsString());
+                            tWall.material = param.AsString();
+                        }
+
+                        if (param.Definition.Name.Contains("Brandschutzanforderungen") && !string.IsNullOrEmpty(param.AsString()))
+                        {
+                            tWall.fireRate = param.AsString();
                         }
                     }
+                    list.Add(tWall);
                 }
             }
             return list;
@@ -243,7 +241,7 @@ namespace SocketModifier
             List<TargetWalls> walls = GetAllWalls(GetLinkedDocuments(app), GetLevels(doc));
             foreach (TargetWalls wall in walls)
             {
-                temp += wall.material+ "\n";
+                temp += wall.material + "\n";
                 List<FamilyInstance> wallDevices = GetDevices(doc, wall.element);
                 AddParameterData(doc, wallDevices, wall);
             }
